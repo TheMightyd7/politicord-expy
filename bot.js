@@ -17,6 +17,8 @@ const client = new Discord.Client()
 
 const { Sequelize } = require('sequelize')
 
+process.on('unhandledRejection', error => console.error('Uncaught Promise Rejection', error));
+
 const sequelize = new Sequelize(process.env.DB_DATABASE, process.env.DB_USERNAME, process.env.DB_PASSWORD, {
     dialect: process.env.DB_CONNECTION,
     host: process.env.DB_HOST,
@@ -90,7 +92,7 @@ const calculateXp = (level) => {
 }
 
 const logAbnormalXpChange = (originalXp, newXp, member, guild, message) => {
-    let channel = client.channels.fetch('813463898019201067')
+    let channel = client.channels.fetch('855656138149199903')
 
     channel.send(`${member} from guild ${guild.name} went from ${originalXp} to ${newXp} when ${message}.`)
 }
@@ -162,7 +164,7 @@ client.on('message', async (msg) => {
 
                     await member.update({ xp: newXp })
 
-                    msg.channel.send(`${memberToReward} thank you for bumping the server! Here's ${config.bumpXp} XP, for a new total of ${newXp}.`)
+                    msg.channel.send(`${memberToReward} Here's ${config.bumpXp} XP, for a new total of ${newXp}.`)
 
                     let level = calculateLevel(member.xp)
 
@@ -181,9 +183,20 @@ client.on('message', async (msg) => {
                     }
 
                     if (member.last_level_reported !== level) {
-                        msg.channel.send({
+                        msg.guild.channels.cache.get('853497354237509664').send({
                             embed: {
-                                color: 0xc026d3,
+                                color: 0x87CEEB,
+                                description: `You just reached level ${level}.`,
+                                thumbnail: {
+                                    url: memberToReward.user.displayAvatarURL(),
+                                },
+                                timestamp: new Date(),
+                                title: `Congratulations ${memberToReward.user.username}!`,
+                            },
+                        })
+						msg.channel.send({
+                            embed: {
+                                color: 0x87CEEB,
                                 description: `You just reached level ${level}.`,
                                 thumbnail: {
                                     url: memberToReward.user.displayAvatarURL(),
@@ -224,7 +237,22 @@ client.on('message', async (msg) => {
 
                 await member.update({ xp: newXp })
 
-                msg.channel.send(`${memberToReward} thank you for bumping the server! Here's ${config.bumpXp} XP, for a new total of ${newXp}.`)
+                //msg.channel.send(`${memberToReward} Because you bumped, here's ${config.bumpXp} XP, for a new total of ${newXp}.`)
+				
+				msg.guild.channels.cache.get('853497354237509664').send({
+                        embed: {
+                            color: 0x87CEEB,
+                            description: `You received ${config.bumpXp} XP as a reward for bumping in <#739241088744816661>.`,
+                            thumbnail: {
+                                url: memberToReward.user.displayAvatarURL(),
+                            },
+                            timestamp: new Date(),
+							footer: {
+								text: 'Bumping is a great way to get XP. Want to be first? Toggle bump ping with the command p!bump',
+							},
+                            title: `Congratulations ${memberToReward.user.username}!`,
+                        },
+                    })
 
                 let level = calculateLevel(member.xp)
 
@@ -243,9 +271,9 @@ client.on('message', async (msg) => {
                 }
 
                 if (member.last_level_reported !== level) {
-                    msg.channel.send({
+                    msg.guild.channels.cache.get('853497354237509664').send({
                         embed: {
-                            color: 0xc026d3,
+                            color: 0x87CEEB,
                             description: `You just reached level ${level}.`,
                             thumbnail: {
                                 url: memberToReward.user.displayAvatarURL(),
@@ -298,9 +326,9 @@ client.on('message', async (msg) => {
         }
 
         if (member.last_level_reported !== level) {
-            msg.channel.send({
+            msg.guild.channels.cache.get('853497354237509664').send({
                 embed: {
-                    color: 0xc026d3,
+                    color: 0x87CEEB,
                     description: `You just reached level ${level}.`,
                     thumbnail: {
                         url: msg.author.displayAvatarURL(),
@@ -384,7 +412,7 @@ client.on('message', async (msg) => {
 
             return msg.channel.send({
                 embed: {
-                    color: 0xc026d3,
+                    color: 0x87CEEB,
                     fields: [
                         {
                             name: 'Blacklisted channels',
@@ -435,7 +463,19 @@ client.on('message', async (msg) => {
         return msg.reply(`${channelToBlacklist} has been ${actionDescription}.`)
     }
 
+
     if (command === 'leaderboard' || command === 'lb') {
+		
+		let channel
+		
+		if (msg.channel.id == `874557857314529321` || msg.channel.id == '732409225984081951') { 
+			channel = msg.channel
+		} else {
+			channel = msg.guild.channels.cache.get('874557857314529321')
+			msg.reply('\<a:1984:827053202465226792> You can\'t use this command here. I\'ve sent the leaderboard to <#874557857314529321>.')
+		}
+		
+		
         let page = +args[0]
 
         if (! page || ! Number.isInteger(page) || page < 1) page = 1
@@ -443,7 +483,8 @@ client.on('message', async (msg) => {
         const pageSize = 10
 
         let members = await Member.findAll({ limit: pageSize, offset: (page * pageSize) - pageSize, order: [['xp', 'DESC']], where: { guild_id: msg.guild.id, is_blacklisted: false, is_member: true } })
-
+		let allMembers = await Member.findAll({ order: [['xp', 'DESC']], where: { guild_id: msg.guild.id, is_blacklisted: false, is_member: true } })
+		
         if (! members.length) {
             page = 1
 
@@ -466,16 +507,24 @@ client.on('message', async (msg) => {
                 value: `Level ${level} - ${memberToAdd.xp} XP`,
             })
         })
-
-        return msg.channel.send({
+		function roundNumber(rnum) { 
+			var newnumber = Math.round(rnum * Math.pow(10, 0)) / Math.pow(10, 0);
+			return newnumber;
+		}
+		let maxPages = Math.ceil((allMembers.length / 10))
+		//console.log(allMembers.length)
+        return channel.send({
             embed: {
-                color: 0xc026d3,
+                color: 0x87CEEB,
                 fields: embedFields,
                 thumbnail: {
                     url: msg.guild.iconURL(),
                 },
                 timestamp: new Date(),
-                title: `Leaderboard${ page > 1 ? ` - Page ${page}` : '' }`,
+                title: `Leaderboard - Page ${page}`,
+				footer: {
+					text: `Viewing page ${page} of ${maxPages}`,
+				},
             },
         })
     }
@@ -491,9 +540,18 @@ client.on('message', async (msg) => {
 
         let nextLevelXp = calculateXp(level + 1)
 
-        return msg.channel.send({
+		let channel
+		
+		if (msg.channel.id == `874557857314529321` || msg.channel.id == '732409225984081951') { 
+			channel = msg.channel
+		} else {
+			channel = msg.guild.channels.cache.get('874557857314529321')
+			msg.reply('\<a:1984:827053202465226792> You can\'t use this command here. I\'ve sent your level to <#874557857314529321>.')
+		}
+		
+        return channel.send({
             embed: {
-                color: 0xc026d3,
+                color: 0x87CEEB,
                 description: `${member.xp} / ${nextLevelXp} XP`,
                 thumbnail: {
                     url: memberToReport.user.displayAvatarURL(),
@@ -540,7 +598,7 @@ client.on('message', async (msg) => {
 
         return msg.channel.send({
             embed: {
-                color: 0xc026d3,
+                color: 0x87CEEB,
                 fields: embedFields,
                 thumbnail: {
                     url: msg.guild.iconURL(),
@@ -770,6 +828,43 @@ client.on('message', async (msg) => {
             reply.delete()
         }, 10000)
     }
+	
+	if (command === 'help' || command === 'h') {
+		const exampleEmbed = {
+			color: 0x87CEEB,
+			//title: `Help`,
+			description: `**User Commands:**
+			
+\`${prefix}rank <member>\` - Check a member's XP and level.
+\`${prefix}leaderboard <page>\` - Display's a server-wide XP leaderboard.
+
+**XP Management:** 
+
+\`${prefix}reward <member> <xp>\` - Increases a member's XP.
+\`${prefix}sanction <member> <xp>\` - Decreases a member's XP.
+\`${prefix}setxp <member> <xp>\` - Sets a member's XP.
+\`${prefix}setlevel <member> <level>\` - Sets a member's level.
+
+**Bot Settings:**
+
+\`${prefix}prefix\` - Sets the bot's command prefix. By default, it is ${prefix}.
+\`${prefix}status\` - Check the bot's status
+\`${prefix}blacklist\` - Displays a list of the guild's blacklisted channels and members.
+\`${prefix}blacklist <channel or member>\` - Toggle a channel or member on the blacklist.
+\`${prefix}ranks\` - Displays a list of the guild's ranks.
+\`${prefix}addrank <level> <role>\` - Automatically assign a role when a member reaches a level.
+\`${prefix}removerank <level or role>\` - Remove a role that is automatically assigned when a member reaches a level.
+`,
+			thumbnail: {
+				//url: client.user.iconURL(),
+			},
+			timestamp: new Date(),
+		};
+
+		msg.channel.send({ embed: exampleEmbed });
+
+	
+	}
 })
 
 client.on('ready', async () => {
