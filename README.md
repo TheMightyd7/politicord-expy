@@ -1,6 +1,6 @@
-# Expy
+# Politicord Leveling
 
-Discord bot for member XP and ranking.
+A forked version of Expy, a Discord bot for member XP and ranking.
 
 ## Commands
 
@@ -9,6 +9,8 @@ Discord bot for member XP and ranking.
 `$leaderboard <page>` - Display's a server-wide XP leaderboard.
 
 `$status` - Check the bot's status.
+
+`$help` - Display a help menu
 
 ### Managing XP
 
