@@ -1,6 +1,6 @@
 # Politicord Leveling
 
-A forked version of Expy, a Discord bot for member XP and ranking.
+A fork of Expy, a Discord bot for member XP and ranking.
 
 ## Commands
 
